@@ -22,24 +22,3 @@ jobs:
 
     - name: Build
       run: make
-
-    - name: Cross-build and package
-      env:
-        VERSION: ${{ github.event.release.tag_name || github.sha }}
-      run: |
-        for arch in amd64 arm64; do
-          name="rsyslog_exporter-${VERSION#v}.linux-${arch}"
-          mkdir -p "dist/${name}"
-          GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 \
-            go build -o "dist/${name}/rsyslog_exporter" .
-          cp LICENSE README.md "dist/${name}/"
-          tar -czf "dist/${name}.tar.gz" -C dist "${name}"
-          (cd dist && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
-        done
-
-    - name: Upload artefacts
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-      with:
-        name: dist
-        path: dist/*.tar.gz*
-        if-no-files-found: error
