@@ -230,7 +230,7 @@ func (re *rsyslogExporter) run(silent, ignoreUnknown bool) {
 	for re.scanner.Scan() {
 		err := re.handleStatLine(re.scanner.Bytes())
 		if err != nil {
-			errorPoint.Value += 1
+			errorPoint.Value++
 			if !silent && !(ignoreUnknown && strings.HasPrefix(err.Error(), unknownStatTypeError)) {
 				log.Printf("error handling stats line: %v, line was: %s", err, re.scanner.Bytes())
 			}

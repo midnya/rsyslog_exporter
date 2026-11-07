@@ -57,7 +57,7 @@ func main() {
 
 	prometheus.MustRegister(exporter)
 	http.Handle(*metricPath, promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		// nolint:errcheck
 		w.Write([]byte(`<html>
 <head><title>Rsyslog exporter</title></head>
@@ -74,8 +74,7 @@ func main() {
 		log.Fatal(http.ListenAndServe(*listenAddress, nil))
 	} else if *certPath == "" || *keyPath == "" {
 		log.Fatal("Both tls.server-crt and tls.server-key must be specified")
-	} else {
-		log.Printf("Listening for TLS on %s", *listenAddress)
-		log.Fatal(http.ListenAndServeTLS(*listenAddress, *certPath, *keyPath, nil))
 	}
+	log.Printf("Listening for TLS on %s", *listenAddress)
+	log.Fatal(http.ListenAndServeTLS(*listenAddress, *certPath, *keyPath, nil))
 }
