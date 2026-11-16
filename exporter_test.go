@@ -14,7 +14,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -282,5 +284,66 @@ func TestHandleUnknown(t *testing.T) {
 
 	if want, got := 0, len(exporter.keys()); want != got {
 		t.Errorf("want '%d', got '%d'", want, got)
+	}
+}
+
+func TestHandleStatLineErrorKind(t *testing.T) {
+	exporter := newRsyslogExporter()
+
+	tests := []struct {
+		name        string
+		line        string
+		wantUnknown bool
+	}{
+		{"unknown type", `2017-08-30T08:10:04.786350+00:00 some-node.example.org rsyslogd-pstats: {"a":"b"}`, true},
+		{"invalid json", `2017-08-30T08:10:04.786350+00:00 some-node.example.org rsyslogd-pstats: {"processed": invalid}`, false},
+		{"too few columns", `malformed line`, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := exporter.handleStatLine([]byte(testCase.line))
+
+			if err == nil {
+				t.Fatal("want error, got nil")
+			}
+
+			got := strings.HasPrefix(err.Error(), unknownStatTypeError)
+			if got != testCase.wantUnknown {
+				t.Errorf("want unknown-type error %v, got %v (err: %v)", testCase.wantUnknown, got, err)
+			}
+		})
+	}
+}
+
+func TestShouldLogStatLineError(t *testing.T) {
+	unknownErr := fmt.Errorf("%s: %v", unknownStatTypeError, rsyslogUnknown)
+	otherErr := errors.New("failed to parse")
+
+	tests := []struct {
+		name          string
+		err           error
+		silent        bool
+		ignoreUnknown bool
+		want          bool
+	}{
+		{"unknown, no flags", unknownErr, false, false, true},
+		{"unknown, ignore-unknown", unknownErr, false, true, false},
+		{"unknown, silent", unknownErr, true, false, false},
+		{"unknown, silent and ignore-unknown", unknownErr, true, true, false},
+
+		{"other, no flags", otherErr, false, false, true},
+		{"other, ignore-unknown", otherErr, false, true, true},
+		{"other, silent", otherErr, true, false, false},
+		{"other, silent and ignore-unknown", otherErr, true, true, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := shouldLogStatLineError(testCase.err, testCase.silent, testCase.ignoreUnknown)
+			if got != testCase.want {
+				t.Errorf("want %v, got %v", testCase.want, got)
+			}
+		})
 	}
 }
