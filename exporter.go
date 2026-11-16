@@ -219,6 +219,13 @@ func (re *rsyslogExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
+func shouldLogStatLineError(err error, silent, ignoreUnknown bool) bool {
+	if silent {
+		return false
+	}
+	return !ignoreUnknown || !strings.HasPrefix(err.Error(), unknownStatTypeError)
+}
+
 func (re *rsyslogExporter) run(silent, ignoreUnknown bool) {
 	errorPoint := &point{
 		Name:        "stats_line_errors",
@@ -231,7 +238,7 @@ func (re *rsyslogExporter) run(silent, ignoreUnknown bool) {
 		err := re.handleStatLine(re.scanner.Bytes())
 		if err != nil {
 			errorPoint.Value++
-			if !silent && !(ignoreUnknown && strings.HasPrefix(err.Error(), unknownStatTypeError)) {
+			if shouldLogStatLineError(err, silent, ignoreUnknown) {
 				log.Printf("error handling stats line: %v, line was: %s", err, re.scanner.Bytes())
 			}
 		}
